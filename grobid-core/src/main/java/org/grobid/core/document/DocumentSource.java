@@ -15,6 +15,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * User: zholudev
@@ -42,18 +43,23 @@ public class DocumentSource {
     }
 
     public static DocumentSource fromPdfWithImages(File pdfFile, int startPage, int endPage) {
-        return fromPdf(pdfFile, startPage, endPage, true);
+        return fromPdf(pdfFile, startPage, endPage, true, Optional.<Integer>empty());
     }
 
     public static DocumentSource fromPdf(File pdfFile, int startPage, int endPage) {
-        return fromPdf(pdfFile, startPage, endPage, false);
+        return fromPdf(pdfFile, startPage, endPage, false, Optional.<Integer>empty());
     }
-    public static DocumentSource fromPdf(File pdfFile, int startPage, int endPage, boolean withImages) {
+    public static DocumentSource fromPdf(
+        File pdfFile, int startPage, int endPage, boolean withImages,
+        Optional<Integer> optionalPdf2XmlTimeoutMs) {
         if (!pdfFile.exists() || pdfFile.isDirectory()) {
             throw new GrobidException("Input PDF file " + pdfFile + " does not exist or a directory", GrobidExceptionStatus.BAD_INPUT_DATA);
         }
 
         DocumentSource source = new DocumentSource();
+        int pdf2XmlTimeoutMs = optionalPdf2XmlTimeoutMs.isPresent() ?
+            optionalPdf2XmlTimeoutMs.get() : DEFAULT_TIMEOUT;
+        source.setPdf2XmlTimeout(pdf2XmlTimeoutMs);
         source.xmlFile = source.pdf2xml(true, false, startPage, endPage, pdfFile, tmpPath, withImages);
         source.cleanupXml = true;
         return source;

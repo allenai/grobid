@@ -26,6 +26,7 @@ import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.StringTokenizer;
 import java.util.regex.Matcher;
 
@@ -95,7 +96,7 @@ public class Segmentation extends AbstractParser {
      * @return Document object with segmentation informations
      */
     public Document processing(String input, String assetPath) {
-        return processing(input, assetPath, -1, -1);
+        return processing(input, assetPath, -1, -1, null);
     }
 
     /**
@@ -111,7 +112,9 @@ public class Segmentation extends AbstractParser {
      *                  PDF, -1 for the last page (default)
      * @return Document object with segmentation informations
      */
-    public Document processing(String input, String assetPath, int startPage, int endPage) {
+    public Document processing(
+            String input, String assetPath, int startPage, int endPage,
+            Optional<Integer> optionalPdf2XmlTimeoutMs) {
         if (input == null) {
             throw new GrobidResourceException("Cannot process pdf file, because input file was null.");
         }
@@ -128,7 +131,8 @@ public class Segmentation extends AbstractParser {
                 assets = true;
             }
 
-            documentSource = DocumentSource.fromPdf(new File(input), startPage, endPage, assets);
+            documentSource = DocumentSource.fromPdf(
+                new File(input), startPage, endPage, assets, optionalPdf2XmlTimeoutMs);
             Document doc = new Document(documentSource);
 
             List<String> tokenizations = doc.addTokenizedDocument();

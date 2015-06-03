@@ -50,6 +50,7 @@ import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Class for managing the extraction of bibliographical informations from PDF
@@ -547,12 +548,36 @@ public class Engine implements Closeable {
      *                             web services for improving header information
      * @param consolidateCitations - the consolidation option allows GROBID to exploit Crossref
      *                             web services for improving citations information
+     * @return the resulting structured document as a TEI string.
+     */
+    public String fullTextToTEI(String inputFile,
+                                boolean consolidateHeader,
+                                boolean consolidateCitations) throws Exception {
+        return fullTextToTEI(
+                inputFile, consolidateHeader, consolidateCitations, null, -1, -1, false,
+                Optional.<Integer>empty());
+    }
+
+    /**
+     * Parse and convert the current article into TEI, this method performs the
+     * whole parsing and conversion process. If onlyHeader is true, than only
+     * the tei header data will be created.
+     *
+     * @param inputFile            - absolute path to the pdf to be processed
+     * @param consolidateHeader    - the consolidation option allows GROBID to exploit Crossref
+     *                             web services for improving header information
+     * @param consolidateCitations - the consolidation option allows GROBID to exploit Crossref
+     *                             web services for improving citations information
+     * @param pdf2XmlTimeoutMs     - timeout for pdf2xml
 	 * @return the resulting structured document as a TEI string.
      */
     public String fullTextToTEI(String inputFile, 
 								boolean consolidateHeader, 
-								boolean consolidateCitations) throws Exception {
-		return fullTextToTEI(inputFile, consolidateHeader, consolidateCitations, null, -1, -1, false);
+								boolean consolidateCitations,
+                                int pdf2XmlTimeoutMs) throws Exception {
+		return fullTextToTEI(
+                inputFile, consolidateHeader, consolidateCitations, null, -1, -1, false,
+                Optional.of(pdf2XmlTimeoutMs));
 	}
 
     /**
@@ -573,7 +598,9 @@ public class Engine implements Closeable {
 								boolean consolidateHeader, 
 								boolean consolidateCitations,
 								String assetPath) throws Exception {
-		return fullTextToTEI(inputFile, consolidateHeader, consolidateCitations, assetPath, -1, -1, false);
+		return fullTextToTEI(
+                inputFile, consolidateHeader, consolidateCitations, assetPath, -1, -1, false,
+                Optional.<Integer>empty());
 	}
 
     /**
@@ -596,13 +623,26 @@ public class Engine implements Closeable {
 	 * the resulting TEI 	
 	 * @return the resulting structured document as a TEI string.
      */
+    public String fullTextToTEI(String inputFile,
+                                boolean consolidateHeader,
+                                boolean consolidateCitations,
+                                String assetPath,
+                                int startPage,
+                                int endPage,
+                                boolean generateIDs) throws Exception {
+        return fullTextToTEI(
+            inputFile, consolidateHeader, consolidateCitations, assetPath, startPage, endPage,
+            generateIDs, Optional.<Integer>empty());
+    }
+
     public String fullTextToTEI(String inputFile, 
 								boolean consolidateHeader, 
 								boolean consolidateCitations,
 								String assetPath,
 								int startPage,
 								int endPage,
-								boolean generateIDs) throws Exception {
+								boolean generateIDs,
+                                Optional<Integer> optionalPdf2XmlTimeoutMs) throws Exception {
         FullTextParser fullTextParser = parsers.getFullTextParser();
 
         // replace by the commented version for the new full ML text parser
@@ -610,7 +650,8 @@ public class Engine implements Closeable {
         LOGGER.debug("Starting processing fullTextToTEI on " + inputFile);
         long time = System.currentTimeMillis();
         resultDoc = fullTextParser.processing(inputFile, consolidateHeader, 
-				consolidateCitations, 0, assetPath, startPage, endPage, generateIDs);
+				consolidateCitations, 0, assetPath, startPage, endPage, generateIDs,
+                optionalPdf2XmlTimeoutMs);
         LOGGER.debug("Ending processing fullTextToTEI on " + inputFile + ". Time to process: " + (System.currentTimeMillis() - time) + "ms");
         return resultDoc.getTei();
     }

@@ -29,10 +29,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.SortedSet;
-import java.util.StringTokenizer;
+import java.util.*;
 import java.util.regex.Matcher;
 
 /**
@@ -79,14 +76,15 @@ public class FullTextParser extends AbstractParser {
 	 * the resulting TEI 
      * @return the document object with built TEI
      */
-    public Document processing(String input, 
-							boolean consolidateHeader, 
-							boolean consolidateCitations,
-							int mode,
-							String assetPath,
-							int startPage,
-							int endPage,
-							boolean generateIDs) throws Exception {
+    public Document processing(String input,
+                               boolean consolidateHeader,
+                               boolean consolidateCitations,
+                               int mode,
+                               String assetPath,
+                               int startPage,
+                               int endPage,
+                               boolean generateIDs,
+                               Optional<Integer> optionalPdf2XmlTimeoutMs) throws Exception {
         if (input == null) {
             throw new GrobidResourceException("Cannot process pdf file, because input file was null.");
         }
@@ -104,7 +102,8 @@ public class FullTextParser extends AbstractParser {
         }
         try {
             // general segmentation
-            Document doc = parsers.getSegmentationParser().processing(input, assetPath, startPage, endPage); 
+            Document doc = parsers.getSegmentationParser().processing(
+                    input, assetPath, startPage, endPage, optionalPdf2XmlTimeoutMs);
 			SortedSet<DocumentPiece> documentBodyParts = doc.getDocumentPart(SegmentationLabel.BODY);
 			Pair<String,List<String>> featSeg = getBodyTextFeatured(doc, documentBodyParts);
 			String rese = null;
