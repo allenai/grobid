@@ -635,8 +635,8 @@ public class Engine implements Closeable {
             generateIDs, Optional.<Integer>empty());
     }
 
-    public String fullTextToTEI(String inputFile, 
-								boolean consolidateHeader, 
+    public String fullTextToTEI(String inputFile,
+								boolean consolidateHeader,
 								boolean consolidateCitations,
 								String assetPath,
 								int startPage,

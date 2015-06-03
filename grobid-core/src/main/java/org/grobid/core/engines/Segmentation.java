@@ -96,7 +96,7 @@ public class Segmentation extends AbstractParser {
      * @return Document object with segmentation informations
      */
     public Document processing(String input, String assetPath) {
-        return processing(input, assetPath, -1, -1, null);
+        return processing(input, assetPath, -1, -1, Optional.<Integer>empty());
     }
 
     /**
