@@ -6,6 +6,7 @@ import org.grobid.core.data.BiblioItem;
 import org.grobid.core.document.Document;
 import org.grobid.core.document.DocumentPiece;
 import org.grobid.core.document.DocumentPointer;
+import org.grobid.core.document.DocumentSource.Optional;
 import org.grobid.core.document.TEIFormater;
 import org.grobid.core.exceptions.GrobidException;
 import org.grobid.core.exceptions.GrobidResourceException;

@@ -15,7 +15,6 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * User: zholudev
@@ -34,6 +33,30 @@ public class DocumentSource {
     private int timeout = DEFAULT_TIMEOUT; // timeout 20 second for
     boolean cleanupXml = false;
 
+    // Java 1.6 land, add a quick-n-dirty Optional.
+    public static class Optional<T> {
+        private T t;
+
+        public static <T> Optional<T> empty() {
+            return new Optional(null);
+        }
+
+        public static <T> Optional<T> of(T t) {
+            return new Optional(t);
+        }
+
+        private Optional(T t) {
+            this.t = t;
+        }
+
+        public boolean isPresent() {
+            return t != null;
+        }
+
+        public T get() {
+            return t;
+        }
+    }
 
     private DocumentSource() {
     }

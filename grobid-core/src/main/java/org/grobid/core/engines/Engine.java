@@ -25,6 +25,7 @@ import org.grobid.core.data.ChemicalEntity;
 import org.grobid.core.data.PatentItem;
 import org.grobid.core.data.Person;
 import org.grobid.core.document.Document;
+import org.grobid.core.document.DocumentSource.Optional;
 import org.grobid.core.exceptions.GrobidException;
 import org.grobid.core.exceptions.GrobidResourceException;
 import org.grobid.core.lang.Language;
@@ -50,7 +51,6 @@ import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * Class for managing the extraction of bibliographical informations from PDF
