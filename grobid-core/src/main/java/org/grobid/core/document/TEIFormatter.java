@@ -1268,12 +1268,16 @@ public class TEIFormatter {
                 }
                 curDiv.appendChild(note);
             } else if (clusterLabel.equals(TaggingLabels.PARAGRAPH)) {
-                String clusterContent = LayoutTokensUtil.normalizeDehyphenizeText(cluster.concatTokens());
+                List<LayoutToken> tokens = cluster.concatTokens();
+                String clusterContent = LayoutTokensUtil.normalizeDehyphenizeText(tokens);
                 if (isNewParagraph(lastClusterLabel, curParagraph)) {
                     curParagraph = teiElement("p");
                     if (config.isGenerateTeiIds()) {
                         String divID = KeyGen.getKey().substring(0, 7);
                         addXmlId(curParagraph, "_" + divID);
+                    }
+                    if (config.isGenerateTeiCoordinates("p")) {
+                        curParagraph.addAttribute(new Attribute("coords", LayoutTokensUtil.getCoordsString(tokens)));
                     }
                     curDiv.appendChild(curParagraph);
                 }
