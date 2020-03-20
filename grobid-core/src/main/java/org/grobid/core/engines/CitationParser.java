@@ -326,6 +326,7 @@ public class CitationParser extends AbstractParser {
 
             TaggingLabel clusterLabel = cluster.getTaggingLabel();
             Engine.getCntManager().i(clusterLabel);
+            biblio.setLayoutTokensForLabel(cluster.concatTokens(), clusterLabel);
 
             //String clusterContent = LayoutTokensUtil.normalizeText(LayoutTokensUtil.toText(cluster.concatTokens()));
             //String clusterContent = LayoutTokensUtil.toText(cluster.concatTokens());

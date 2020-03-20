@@ -13,6 +13,7 @@ import org.grobid.service.exceptions.mapper.GrobidServiceExceptionMapper;
 import org.grobid.service.exceptions.mapper.WebApplicationExceptionMapper;
 import org.grobid.service.process.GrobidRestProcessFiles;
 import org.grobid.service.process.GrobidRestProcessGeneric;
+import org.grobid.service.process.GrobidRestProcessPdfStructure;
 import org.grobid.service.process.GrobidRestProcessString;
 import org.grobid.service.resources.HealthResource;
 
@@ -32,6 +33,7 @@ public class GrobidServiceModule extends DropwizardAwareModule<GrobidServiceConf
         binder.bind(GrobidRestProcessFiles.class);
         binder.bind(GrobidRestProcessGeneric.class);
         binder.bind(GrobidRestProcessString.class);
+        binder.bind(GrobidRestProcessPdfStructure.class);
 
         //Exception Mappers
         binder.bind(GrobidServiceExceptionMapper.class);

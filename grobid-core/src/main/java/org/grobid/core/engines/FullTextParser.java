@@ -963,7 +963,7 @@ public class FullTextParser extends AbstractParser {
     /**
      * Return the index of a token in a document tokenization
      */
-    private static int getDocIndexToken(Document doc, LayoutToken token) {
+    public static int getDocIndexToken(Document doc, LayoutToken token) {
         int blockPtr = token.getBlockPtr();
         Block block = doc.getBlocks().get(blockPtr);
         int startTokenBlockPos = block.getStartToken();
