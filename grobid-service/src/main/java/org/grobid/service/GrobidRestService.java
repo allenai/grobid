@@ -12,6 +12,7 @@ import org.grobid.core.factory.GrobidPoolingFactory;
 
 import org.grobid.service.process.GrobidRestProcessFiles;
 import org.grobid.service.process.GrobidRestProcessGeneric;
+import org.grobid.service.process.GrobidRestProcessPdfStructure;
 import org.grobid.service.process.GrobidRestProcessString;
 import org.grobid.service.util.GrobidRestUtils;
 import org.grobid.service.util.ZipUtils;
@@ -57,6 +58,9 @@ public class GrobidRestService implements GrobidPaths {
 
     @Inject
     private GrobidRestProcessString restProcessString;
+
+    @Inject
+    private GrobidRestProcessPdfStructure restProcessPdfStructure;
 
     @Inject
     public GrobidRestService(GrobidServiceConfiguration configuration) {
@@ -187,6 +191,14 @@ public class GrobidRestService implements GrobidPaths {
                                             @FormDataParam("generateIDs") String generateIDs,
                                             @FormDataParam("teiCoordinates") List<FormDataBodyPart> coordinates) throws Exception {
         return processFulltext(inputStream, consolidateHeader, consolidateCitations, includeRawCitations, startPage, endPage, generateIDs, coordinates);
+    }
+
+    @Path(PATH_PDF_STRUCTURE)
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    @Produces(MediaType.APPLICATION_JSON)
+    @POST
+    public Response processPdfStructure(@FormDataParam(INPUT) InputStream inputStream) throws Exception {
+        return restProcessPdfStructure.processPdfStructure(inputStream);
     }
 
     private Response processFulltext(InputStream inputStream,
