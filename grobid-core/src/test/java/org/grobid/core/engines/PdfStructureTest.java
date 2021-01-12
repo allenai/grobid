@@ -8,14 +8,15 @@ import org.grobid.core.document.DocumentSource;
 import org.grobid.core.engines.config.GrobidAnalysisConfig;
 import org.grobid.core.factory.GrobidFactory;
 import org.junit.Ignore;
+import org.junit.Test;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public class PdfStructureTest {
 
@@ -29,6 +30,24 @@ public class PdfStructureTest {
 
         Document doc = engine.getParsers().getFullTextParser().processing(documentSource, config);
         PdfStructureParser.PdfStructure pdfStructure = new PdfStructureParser().extractStructure(engine, doc);
+
+        for (Map.Entry<String, ArrayList<PdfStructureParser.TextElement>> e : pdfStructure.getElements().getElementTypes().entrySet()) {
+            for (PdfStructureParser.TextElement el : e.getValue()) {
+                for (int i = 0; i < el.getSpans().size(); ++i) {
+                    PdfStructureParser.Span current = el.getSpans().get(i);
+                    if (current.getRight() == current.getLeft()) {
+                        fail("Empty span " + current);
+                    }
+                    if (i < el.getSpans().size() - 1) {
+                        PdfStructureParser.Span next = el.getSpans().get(i + 1);
+                        if (next.getLeft() < current.getRight()) {
+                            fail("Non-sequential spans of type" + e.getKey() + ": [" + current.getLeft() + "," + current.getRight() + "], ["
+                                + next.getLeft() + "," + next.getRight() + "]");
+                        }
+                    }
+                }
+            }
+        }
 
         List<PdfStructureParser.TextElement> bibItemsFromPdfStructure =
             pdfStructure.getElements().getElementTypes().get("<bibItem>");
@@ -51,11 +70,11 @@ public class PdfStructureTest {
             // Text should be the same, ignoring whitespace
             assertEquals(String.join("", titleFromTei), String.join("", titleFromPdfStructure));
 
-            // Check authorsa
+            // Check authors
             List<String> authorsFromTei = new ArrayList<String>();
             Nodes authorNodes = bibItemsFromTei.get(i).query(".//*[name()='persName']//text()");
             for (int n = 0; n < authorNodes.size(); ++n) {
-                authorsFromTei.addAll(Lists.newArrayList(authorNodes.get(n).getValue().split("\\p{Punct}")));
+                authorsFromTei.addAll(Lists.newArrayList(authorNodes.get(n).getValue().split("[\\s\\p{Punct}]")));
             }
             HashSet<String> authorsFromPdfStructure = new HashSet<String>();
             authorsFromPdfStructure.addAll(
