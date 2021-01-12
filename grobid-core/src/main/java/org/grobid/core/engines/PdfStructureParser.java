@@ -45,7 +45,8 @@ public class PdfStructureParser {
         processFigures(doc, elements);
         processTables(doc, elements);
         processBodyText(engine, doc, elements);
-        processSymbols(doc, elements);
+        processHeader(engine, doc, elements);
+//        processSymbols(doc, elements); // This should be done external to Grobid
 
         PdfTokens tokens = new PdfTokens(doc);
         PdfStructure structure = new PdfStructure(tokens, elements);
@@ -60,7 +61,7 @@ public class PdfStructureParser {
         elements.add(bibliography);
         List<LabeledReferenceResult> references = engine.getParsers().getReferenceSegmenterParser().extract(doc);
         List<BibDataSet> bibs = doc.getBibDataSets();
-        if (bibs != null) {
+        if (bibs != null && references != null) {
             Map<String, BibDataSet> byText = new HashMap<String, BibDataSet>();
             for (BibDataSet bib : bibs) {
                 byText.put(bib.getResBib().getReference(), bib);
@@ -77,35 +78,41 @@ public class PdfStructureParser {
                     // This logic recovers the tokens in the document based on
                     // their relative position within the bib-item
                     if (bib.getResBib() != null && !ref.getTokens().isEmpty()) {
-                        List<LayoutToken> refTokens = ref.getTokens();
-                        LayoutToken firstToken = refTokens.get(0);
-                        LayoutToken lastToken = refTokens.get(refTokens.size() - 1);
-                        int maxOffset =
-                            lastToken.getOffset() - firstToken.getOffset() +
-                            lastToken.getBlockPtr() - firstToken.getBlockPtr();
-                        LayoutToken[] tokensAtOffset = new LayoutToken[maxOffset + 1];
-                        for (LayoutToken t : refTokens) {
-                            int relativeOffset = t.getOffset() - firstToken.getOffset();
-                            tokensAtOffset[relativeOffset] = t;
-                        }
+                        List<LayoutToken> tokensFromDocument = ref.getTokens();
+                        List<LayoutToken> tokensFromBib = new ArrayList<LayoutToken>();
                         for (Map.Entry<String, List<LayoutToken>> e : bib.getResBib().getLabeledTokens().entrySet()) {
-                            List<LayoutToken> elementTokens = new ArrayList<LayoutToken>();
-                            for (LayoutToken t : e.getValue()) {
-                                LayoutToken originalToken = tokensAtOffset[t.getOffset()];
-                                for (int slop = 1;
-                                     slop < 4 && originalToken == null || !originalToken.getText().equals(t.getText());
-                                     slop++) {
-                                    originalToken = tokensAtOffset[t.getOffset() + slop];
+                            tokensFromBib.addAll(e.getValue());
+                        }
+                        Collections.sort(tokensFromBib, Comparator.comparingInt(t -> t.getOffset()));
+                        int[] positionInDoc = new int[tokensFromBib.size()];
+                        Map<Integer, Integer> offsetToIndex = new HashMap<Integer, Integer>();
+                        int docI = 0, bibI = 0;
+                        outerloop:
+                        while (bibI < tokensFromBib.size()) {
+                            while (!tokensFromDocument.get(docI).getText().equals(tokensFromBib.get(bibI).getText())) {
+                                docI++;
+                                if (docI >= tokensFromDocument.size()) {
+                                    break outerloop;
                                 }
-                                if (originalToken == null || !originalToken.getText().equals(t.getText())) {
-                                    LOGGER.warn("Error finding tokens for element " + e.getKey() + " inside bibItem '" + ref.getReferenceText() + "'");
-                                    break;
-                                }
-                                elementTokens.add(originalToken);
                             }
-                            String elementType = "<bibItem_" + e.getKey().substring(1);
-                            elements.addElement(elementType, doc, elementTokens)
-                                .addTag(Tags.ID, bibItemId);
+                            positionInDoc[bibI] = docI;
+                            offsetToIndex.put(tokensFromBib.get(bibI).getOffset(), bibI);
+                            bibI++;
+                        }
+                        if (bibI < tokensFromBib.size()) {
+                            LOGGER.warn("Unable to find tokens in parent document following '" + tokensFromBib.get(bibI) + "' inside bibItem '" + ref.getReferenceText() + "'");
+                        } else {
+                            for (Map.Entry<String, List<LayoutToken>> e : bib.getResBib().getLabeledTokens().entrySet()) {
+                                List<LayoutToken> elementTokens = new ArrayList<LayoutToken>();
+                                for (LayoutToken t : e.getValue()) {
+                                    int docIndex = positionInDoc[offsetToIndex.get(t.getOffset())];
+                                    LayoutToken originalToken = tokensFromDocument.get(docIndex);
+                                    elementTokens.add(originalToken);
+                                }
+                                String elementType = "<bibItem_" + e.getKey().substring(1);
+                                elements.addElement(elementType, doc, elementTokens)
+                                    .addTag(Tags.ID, bibItemId);
+                            }
                         }
                     }
                 }
@@ -144,6 +151,20 @@ public class PdfStructureParser {
                     .addTag(Tags.ID, tab.getId());
             }
         }
+    }
+
+    private void processHeader(Engine engine, Document doc, PdfTextElements elements) {
+        try {
+            BiblioItem resHeader = new BiblioItem();
+            engine.getParsers().getHeaderParser().processingHeaderBlock(0, doc, resHeader);
+            for (Map.Entry<String, List<LayoutToken>> e : resHeader.getLabeledTokens().entrySet()) {
+                elements.addElement(e.getKey(), doc, e.getValue());
+            }
+
+        } catch (Exception ex) {
+            LOGGER.warn("Exception parsing paper header", ex);
+        }
+
     }
 
     // Identify the tokens in the body text:
@@ -348,7 +369,8 @@ public class PdfStructureParser {
         }
     }
 
-    /** The set of tokens extracted from the PDF
+    /**
+     * The set of tokens extracted from the PDF
      * and the text elements identified within it
      */
     public static class PdfStructure {
@@ -372,15 +394,14 @@ public class PdfStructureParser {
 
         public List<String> textOf(TextElement el) {
             if (!el.usesNonwhitespaceIndices) {
-                throw new IllegalStateException("TextElement "+el.getType()+" has not been converted to use non-whitespace tokens");
+                throw new IllegalStateException("TextElement " + el.getType() + " has not been converted to use non-whitespace tokens");
             }
             ArrayList<String> tokens = new ArrayList<String>();
             for (Span s : el.spans) {
                 if (s.dehyphenizedText != null) {
                     tokens.addAll(s.dehyphenizedText);
-                }
-                else {
-                    for (int i=s.left; i < s.right; ++i) {
+                } else {
+                    for (int i = s.left; i < s.right; ++i) {
                         tokens.add(this.tokens.nonwhitespaceTokens.get(i).getText());
                     }
                 }
@@ -393,7 +414,7 @@ public class PdfStructureParser {
      * Set of text elements, organized by type
      */
     public static class PdfTextElements {
-    private Map<String, ArrayList<TextElement>> elementTypes = new HashMap<>();
+        private Map<String, ArrayList<TextElement>> elementTypes = new HashMap<>();
 
         public PdfTextElements() {
         }
@@ -430,6 +451,7 @@ public class PdfStructureParser {
 
         private static Set<String> shouldDehyphenize = Sets.newHashSet(
             TaggingLabels.PARAGRAPH.getLabel(),
+            TaggingLabels.ABSTRACT_LABEL,
             "<bibItem_" + TaggingLabels.CITATION_TITLE.getLabel().substring(1));
 
         // Mutate the text elements to specify dehyphenized text, if appropriate
@@ -446,11 +468,12 @@ public class PdfStructureParser {
 
     }
 
-    /** Two differences between Grobid's raw tokenization:
+    /**
+     * Two differences between Grobid's raw tokenization:
      * 1. Grobid copies the style information into each token.
-     *    Here, the styles are referenced by name (as in the pdf-alto XML file)
+     * Here, the styles are referenced by name (as in the pdf-alto XML file)
      * 2. Grobid inserts whitespace tokens (spaces and line breaks).
-     *    Here, only non-whitespace tokens are retained.
+     * Here, only non-whitespace tokens are retained.
      */
     public static class PdfTokens {
         private int[] nonwhitespaceIndex;
@@ -483,8 +506,9 @@ public class PdfStructureParser {
                 TextStyle style = TextStyle.from(token);
                 String styleName = styleNames.get(style);
                 if (styleName == null) {
-                    styleName = "style" + styleCount++;
-                    styleNames.put(style, "style" + styleCount++);
+                    styleName = "style" + styleCount;
+                    styleNames.put(style, styleName);
+                    styleCount++;
                 }
                 int pageNumber = doc.getBlocks().get(token.getBlockPtr()).getPageNumber();
                 PageTokens page = null;
@@ -533,10 +557,11 @@ public class PdfStructureParser {
         // For the given input span, in terms of whitespace-included tokens,
         // Find the corresponding span in terms of non-whitespace tokens
         public Span nonwhitespaceIndices(Span span) {
-            int left = nonwhitespaceIndex[span.getLeft()];
-            int right =
-                span.getLeft() == span.getRight() ? left :
-                    Math.max(nonwhitespaceIndex[span.getRight()], left + 1);
+            int left = nonwhitespaceIndex[span.left];
+            int right = nonwhitespaceIndex[span.right];
+            if (PdfTokens.isWhitespace(allTokens.get(span.right))) {
+                right += 1;
+            }
             Span s = new Span(left, right);
             s.setDehyphenizedText(span.getDehyphenizedText());
             return s;
@@ -705,7 +730,8 @@ public class PdfStructureParser {
         }
     }
 
-    /** A span identifying a contiguous sequence of tokens.
+    /**
+     * A span identifying a contiguous sequence of tokens.
      * If dehyphenizedText is null, then all of the underlying tokens are included.
      * If non-null, then some underlying hyphen tokens should be skipped
      * so as to produce the dehyphenated text.
@@ -737,7 +763,8 @@ public class PdfStructureParser {
         }
     }
 
-    /** A sequence of tokens (not necessarily contiguous in the PDF)
+    /**
+     * A sequence of tokens (not necessarily contiguous in the PDF)
      * For example, a sentence, paragraph, section, figure caption, bibliography entry
      */
     public static class TextElement {
@@ -772,8 +799,8 @@ public class PdfStructureParser {
                 } else {
                     int lastIndex = spanList.size() - 1;
                     Span lastSpan = spanList.get(lastIndex);
-                    if (lastSpan.getRight() == span.getLeft()) {
-                        spanList.set(lastIndex, new Span(lastSpan.getLeft(), span.getRight()));
+                    if (lastSpan.right >= span.left) {
+                        spanList.set(lastIndex, new Span(lastSpan.left, Math.max(span.right, lastSpan.right)));
                     } else {
                         spanList.add(span);
                     }
@@ -811,6 +838,7 @@ public class PdfStructureParser {
             if (usesNonwhitespaceIndices) {
                 throw new IllegalStateException("Must dehyphenize before switching to non-whitespace indices");
             }
+            spanLoop:
             for (Span span : spans) {
                 List<LayoutToken> originalTokens = tokens.allTokens.subList(span.left, span.right);
                 List<LayoutToken> dehyphenizedTokens = LayoutTokensUtil.dehyphenize(originalTokens);
@@ -819,8 +847,10 @@ public class PdfStructureParser {
                     int oi = 0, di = 0;
                     while (oi < originalTokens.size() && di < dehyphenizedTokens.size()) {
                         LayoutToken ot = originalTokens.get(oi);
+                        boolean oIsWhitespace = PdfTokens.isWhitespace(ot);
                         LayoutToken dt = dehyphenizedTokens.get(di);
-                        if (!PdfTokens.isWhitespace(ot)) {
+                        boolean dIsWhitespace = PdfTokens.isWhitespace(dt);
+                        if (!oIsWhitespace && !dIsWhitespace) {
                             if (ot.equals(dt)) {
                                 text.add(ot.getText());
                             } else if ("-".equals(ot.getText())) {
@@ -831,10 +861,22 @@ public class PdfStructureParser {
                                         break;
                                     }
                                 }
+                                if (oi == originalTokens.size()) {
+                                    LOGGER.warn("Failed to align dehypenized text \"" + LayoutTokensUtil.toText(dehyphenizedTokens)
+                                        + "\" with original text \"" + LayoutTokensUtil.toText(originalTokens) + "\"");
+                                    break spanLoop;
+                                }
+                            }
+                            oi++;
+                            di++;
+                        } else {
+                            if (oIsWhitespace) {
+                                oi++;
+                            }
+                            if (dIsWhitespace) {
+                                di++;
                             }
                         }
-                        oi++;
-                        di++;
                     }
                     span.setDehyphenizedText(text);
                 }
