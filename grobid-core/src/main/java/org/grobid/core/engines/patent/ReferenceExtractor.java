@@ -889,7 +889,7 @@ public class ReferenceExtractor implements Closeable {
                 }
                 if (localArticlesBySegment != null && localArticlesBySegment.size()>0) {
                     for(BibDataSet articleCitation : localArticlesBySegment) {
-                        resultTEI.append(articleCitation.toTEI(includeRawCitations) + "\n");
+                        resultTEI.append(articleCitation.toTEIWithPtr(includeRawCitations, divID) + "\n"); // with in-text offsets, like the patent path
                     }
                 }
                 resultTEI.append("\t\t\t</div>\n");

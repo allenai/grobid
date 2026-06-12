@@ -128,4 +128,32 @@ public class BibDataSet {
             return "";
         }
 	}
+
+    /**
+     * Same as {@link #toTEI(boolean)} but, when the in-text position of the
+     * reference is known, injects a string-range <ptr> pointing at it — the
+     * same in-text callout the patent reference path emits via
+     * {@link PatentItem#toTEI(boolean, String)}. The begin offset is the first
+     * recorded offset (relative to the divID segment's text) and the length is
+     * that of the matched raw reference string.
+     */
+    public String toTEIWithPtr(boolean includeRawCitations, String divID) {
+        if (resBib == null) {
+            return "";
+        }
+        GrobidAnalysisConfig config = GrobidAnalysisConfig.builder()
+                .includeRawCitations(includeRawCitations)
+                .build();
+        String tei = resBib.toTEI(-1, 0, config);
+        if (divID != null && rawBib != null && offsets != null && !offsets.isEmpty()) {
+            int begin = offsets.get(0).intValue();
+            int length = rawBib.length();
+            String ptr = "<ptr target=\"#string-range('" + divID + "'," + begin + "," + length + ")\"></ptr>";
+            int close = tei.lastIndexOf("</biblStruct>");
+            if (close != -1) {
+                tei = tei.substring(0, close) + ptr + tei.substring(close);
+            }
+        }
+        return tei;
+    }
 }
